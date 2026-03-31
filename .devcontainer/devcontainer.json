@@ -5,15 +5,16 @@
         "vscode": {
             "settings": {
                 "python.defaultInterpreterPath": "/usr/local/bin/python",
-                "python.analysis.extraPaths": [
-                    "/home/vscode/.local/lib/python3.11/site-packages"
-                ]
+                "jupyter.notebookEditor.defaultInterpreterPath": "/usr/local/bin/python"
             },
             "extensions": [
-                "ms-python.python",
-                "ms-python.vscode-pylance"
+                "ms-python.python",        // Сам Питон
+                "ms-python.vscode-pylance", // Умные подсказки (чтобы не было красных линий)
+                "ms-toolsai.jupyter",       // ТОТ САМЫЙ ЮПИТЕР
+                "ms-toolsai.jupyter-renderers", // Чтобы графики рисовались красиво
+                "ms-toolsai.jupyter-keymap"    // Горячие клавиши для блокнотов
             ]
         }
     },
-    "postCreateCommand": "/usr/local/bin/python -m pip install --user -r requirements.txt"
+    "postCreateCommand": "/usr/local/bin/python -m pip install -r requirements.txt"
 }
