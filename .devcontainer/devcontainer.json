@@ -1,0 +1,16 @@
+{
+    "name": "Magnonics Lab",
+    "image": "mcr.microsoft.com/devcontainers/python:3.11",
+    "customizations": {
+        "vscode": {
+            "settings": {
+                "python.defaultInterpreterPath": "/usr/local/bin/python"
+            },
+            "extensions": [
+                "ms-python.python",
+                "ms-python.vscode-pylance"
+            ]
+        }
+    },
+    "postCreateCommand": "/usr/local/bin/python -m pip install -r requirements.txt"
+}
