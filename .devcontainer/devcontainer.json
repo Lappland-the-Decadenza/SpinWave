@@ -4,7 +4,10 @@
     "customizations": {
         "vscode": {
             "settings": {
-                "python.defaultInterpreterPath": "/usr/local/bin/python"
+                "python.defaultInterpreterPath": "/usr/local/bin/python",
+                "python.analysis.extraPaths": [
+                    "/home/vscode/.local/lib/python3.11/site-packages"
+                ]
             },
             "extensions": [
                 "ms-python.python",
@@ -12,5 +15,5 @@
             ]
         }
     },
-    "postCreateCommand": "/usr/local/bin/python -m pip install -r requirements.txt"
+    "postCreateCommand": "/usr/local/bin/python -m pip install --user -r requirements.txt"
 }
