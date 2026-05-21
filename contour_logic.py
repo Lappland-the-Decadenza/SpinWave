@@ -54,11 +54,17 @@ def _bisection_search(a, b, k_in_complex, ang, E_target, d, alpha_ex, theta_M, o
 
 
 @njit(cache=True)
-def _find_root_along_ray(k_in_complex, ang, initial_r, E_target, d, alpha_ex, theta_M, omega_M, omega_H, omega_M_half,
-                         omega_M_sqrt2):
-    """Шаг 2: Поиск вилки с детектированием смены знака невязки и обработкой NaN."""
+def _find_root_along_ray(k_in_complex, ang, initial_r, E_target, d, alpha_ex, theta_M, omega_M, omega_H, omega_M_half, omega_M_sqrt2):
+    """
+    Поиск вилки с детектированием смены знака невязки.
+    Модификация: Сканирует весь физический диапазон и возвращает САМУЮ ДАЛЬНЮЮ границу контура,
+    предотвращая визуальное обрезание широких резонансных пузырей.
+    """
     r_val = initial_r
     prev_val = np.nan
+
+    furthest_a = -1.0
+    furthest_b = -1.0
 
     for step in range(100):
         k3_c = k_in_complex + r_val * np.exp(1j * ang)
@@ -76,11 +82,17 @@ def _find_root_along_ray(k_in_complex, ang, initial_r, E_target, d, alpha_ex, th
 
         if not np.isnan(prev_val):
             if np.sign(val) != np.sign(prev_val):
-                return _bisection_search(r_val / 2.0, r_val, k_in_complex, ang, E_target, d, alpha_ex, theta_M, omega_M,
-                                         omega_H, omega_M_half, omega_M_sqrt2)
+                # Фиксируем координаты вилки, но НЕ прерываем цикл (ищем дальше)
+                furthest_a = r_val / 2.0
+                furthest_b = r_val
 
         prev_val = val
         r_val *= 2.0
+
+    # После завершения сканирования отправляем на бисекцию только самую внешнюю вилку
+    if furthest_a > 0.0:
+        return _bisection_search(furthest_a, furthest_b, k_in_complex, ang, E_target, d, alpha_ex, theta_M, omega_M,
+                                 omega_H, omega_M_half, omega_M_sqrt2)
 
     return -1.0
 

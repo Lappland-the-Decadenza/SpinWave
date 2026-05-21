@@ -11,7 +11,7 @@ import plot_utils
 # =====================================================================
 # ОРКЕСТРАТОР РАСЧЕТОВ (СКАНИРОВАНИЕ ПО ЧАСТОТЕ ДЛЯ РАЗНЫХ k)
 # =====================================================================
-def calculate_all_vs_f(p, freq_array_ghz, grid_res=500):
+def calculate_all_vs_f(p, freq_array_ghz, grid_res=1000):
     Ms_si, A_si, d_si = p['Ms'], p['A'], p['d']
     th_H_rad = np.deg2rad(p['theta_H_deg'])
     th_k_rad = np.deg2rad(p['theta_k_deg'])
@@ -150,15 +150,23 @@ if __name__ == "__main__":
     FREQ_MIN, FREQ_MAX, NUM_POINTS = 3.0, 30.0, 30
     freq_array_ghz = np.linspace(FREQ_MIN, FREQ_MAX, NUM_POINTS)
 
-    # Теперь мы задаем разные значения k (в 1/м) и строим кривые для них
+    # Чистые параметры без ручного ввода цветов и меток
     params = [
-        {'Ms': 140056.35, 'A': 3.603e-12, 'd': 97.0e-9, 'k': 3e6, 'theta_H_deg': 0.0, 'theta_k_deg': 0.0,
-         'label': r'$k = 3e6$ m$^{-1}$', 'color': 'blue'},
-        {'Ms': 140056.35, 'A': 3.603e-12, 'd': 97.0e-9, 'k': 1e7, 'theta_H_deg': 0.0, 'theta_k_deg': 0.0,
-         'label': r'$k = 1e7$ m$^{-1}$', 'color': 'red'},
-        {'Ms': 140056.35, 'A': 3.603e-12, 'd': 97.0e-9, 'k': 1.5e7, 'theta_H_deg': 0.0, 'theta_k_deg': 0.0,
-         'label': r'$k = 1.5e7$ m$^{-1}$', 'color': 'green'}
+        {'Ms': 140056.35, 'A': 3.603e-12, 'd': 97.0e-9, 'k': 3e6, 'theta_H_deg': 90.0, 'theta_k_deg': 0.0},
+        {'Ms': 140056.35, 'A': 3.603e-12, 'd': 97.0e-9, 'k': 5e6, 'theta_H_deg': 90.0, 'theta_k_deg': 0.0},
+        {'Ms': 140056.35, 'A': 3.603e-12, 'd': 97.0e-9, 'k': 6e6, 'theta_H_deg': 90.0, 'theta_k_deg': 0.0},
+        {'Ms': 140056.35, 'A': 3.603e-12, 'd': 97.0e-9, 'k': 7e6, 'theta_H_deg': 90.0, 'theta_k_deg': 0.0},
+        {'Ms': 140056.35, 'A': 3.603e-12, 'd': 97.0e-9, 'k': 1e7, 'theta_H_deg': 90.0, 'theta_k_deg': 0.0}
     ]
+
+    # Автоматическая генерация цветов из стандартной палитры tab10
+    cmap = plt.get_cmap('tab10')
+    
+    for i, p in enumerate(params):
+        # Автоматический лейбл (использует scientific notation для красивого вывода k)
+        p['label'] = rf'$k = {p["k"]:.1e}$ m$^{{-1}}$'
+        # Автоматический цвет по индексу элемента
+        p['color'] = cmap(i % 10)
 
     print("Запуск сканирования по частоте...")
     all_results = [calculate_all_vs_f(p, freq_array_ghz) for p in params]
