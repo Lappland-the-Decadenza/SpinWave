@@ -11,7 +11,7 @@ import plot_utils
 # =====================================================================
 # ОРКЕСТРАТОР РАСЧЕТОВ (СКАНИРОВАНИЕ ПО ЧАСТОТЕ ДЛЯ РАЗНЫХ k)
 # =====================================================================
-def calculate_all_vs_f(p, freq_array_ghz, grid_res=150):
+def calculate_all_vs_f(p, freq_array_ghz, grid_res=500):
     Ms_si, A_si, d_si = p['Ms'], p['A'], p['d']
     th_H_rad = np.deg2rad(p['theta_H_deg'])
     th_k_rad = np.deg2rad(p['theta_k_deg'])
@@ -53,6 +53,16 @@ def calculate_all_vs_f(p, freq_array_ghz, grid_res=150):
         a_th2, k3_c, k4_c = analytics.find_minimum_threshold_on_contour(
             K_x, K_y, E_mismatch, k_in_complex, is_trivial, state
         )
+
+        # Если оптимизатор не нашел контур на сетке и вернул точку накачки,
+        # принудительно переключаем флаг графика в тривиальный режим.
+        # ПРАВИЛЬНАЯ ПРОВЕРКА НА ТРИВИАЛЬНОСТЬ (с допуском 1e-5)
+        # k_in_mag = np.abs(k_in_complex)
+        # if k_in_mag > 0:
+        #     if np.abs(k3_c - k_in_complex) / k_in_mag < 0.02:
+        #         is_trivial = True
+        # elif np.abs(k3_c) < 1e-5:
+        #     is_trivial = True
 
         P_th = analytics.calculate_threshold_power(a_th2, v_g_si, omega_1, state)
         omega_3, _, gamma_3, _ = analytics.compute_pump_parameters(k3_c, state)
@@ -142,12 +152,12 @@ if __name__ == "__main__":
 
     # Теперь мы задаем разные значения k (в 1/м) и строим кривые для них
     params = [
-        {'Ms': 140056.35, 'A': 3.603e-12, 'd': 97.0e-9, 'k': 2 * np.pi / 500e-6, 'theta_H_deg': 0.0, 'theta_k_deg': 0.0,
-         'label': r'$k = 2 \times 10^6$ m$^{-1}$', 'color': 'blue'},
-        {'Ms': 140056.35, 'A': 3.603e-12, 'd': 97.0e-9, 'k': 2 * np.pi / 50e-6, 'theta_H_deg': 0.0, 'theta_k_deg': 0.0,
-         'label': r'$k = 5 \times 10^6$ m$^{-1}$', 'color': 'red'},
-        {'Ms': 140056.35, 'A': 3.603e-12, 'd': 97.0e-9, 'k': 2 * np.pi / 5e-6, 'theta_H_deg': 0.0, 'theta_k_deg': 0.0,
-         'label': r'$k = 10 \times 10^6$ m$^{-1}$', 'color': 'green'}
+        {'Ms': 140056.35, 'A': 3.603e-12, 'd': 97.0e-9, 'k': 3e6, 'theta_H_deg': 0.0, 'theta_k_deg': 0.0,
+         'label': r'$k = 3e6$ m$^{-1}$', 'color': 'blue'},
+        {'Ms': 140056.35, 'A': 3.603e-12, 'd': 97.0e-9, 'k': 1e7, 'theta_H_deg': 0.0, 'theta_k_deg': 0.0,
+         'label': r'$k = 1e7$ m$^{-1}$', 'color': 'red'},
+        {'Ms': 140056.35, 'A': 3.603e-12, 'd': 97.0e-9, 'k': 1.5e7, 'theta_H_deg': 0.0, 'theta_k_deg': 0.0,
+         'label': r'$k = 1.5e7$ m$^{-1}$', 'color': 'green'}
     ]
 
     print("Запуск сканирования по частоте...")

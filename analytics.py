@@ -154,17 +154,69 @@ def _find_best_scattered_vectors(a_th2_array, k3_array, k4_array):
     return a_th2_array[best_idx], k3_array[best_idx], k4_array[best_idx]
 
 
+# def find_minimum_threshold_on_contour(K_x, K_y, E_mismatch, k_in_complex, is_trivial, state: core.SystemState):
+#     _, _, gamma_in, _ = compute_pump_parameters(k_in_complex, state)
+#
+#     if is_trivial:
+#         return _handle_trivial_threshold(k_in_complex, gamma_in, state)
+#
+#     contour_vertices = _extract_zero_contour_vertices(K_x, K_y, E_mismatch)
+#     if len(contour_vertices) == 0:
+#         return np.nan, k_in_complex, k_in_complex
+#
+#     # Получаем сырой массив всех найденных контуров (включая паразитный в центре)
+#     k3_array_raw = contour_vertices[:, 0] + 1j * contour_vertices[:, 1]
+#     k3_array = k3_array_raw
+#
+#     # --- ФИЛЬТР ТРИВИАЛЬНОЙ ЗОНЫ ---
+#     # Вырезаем радиус в 2% от длины вектора накачки (минимум 100 1/см)
+#     # dist_to_kin = np.abs(k3_array_raw - k_in_complex)
+#     # exclusion_radius = max(np.abs(k_in_complex) * 0.02, 100.0)
+#     # non_trivial_mask = dist_to_kin > exclusion_radius
+#     #
+#     # # Применяем маску
+#     # k3_array = k3_array_raw[non_trivial_mask]
+#     #
+#     # # Если кроме тривиальной точки ничего не было, отменяем расчет
+#     # if len(k3_array) == 0:
+#     #     return np.nan, k_in_complex, k_in_complex
+#
+#     k4_array = (2.0 * k_in_complex) - k3_array
+#
+#     k1_array = np.full_like(k3_array, k_in_complex)
+#     k2_array = np.full_like(k3_array, k_in_complex)
+#
+#     W_vals = vertices.calculate_W_tilde((k1_array, k2_array, k3_array, k4_array), state)
+#     W_abs = np.abs(W_vals)
+#
+#     gamma_3, gamma_4 = _compute_gammas_for_arrays(
+#         np.abs(k3_array), np.angle(k3_array), np.abs(k4_array), np.angle(k4_array),
+#         *state.numba_args, ALPHA_G
+#     )
+#
+#     a_th2_array = _compute_thresholds_numba(gamma_3, gamma_4, W_abs)
+#
+#     return _find_best_scattered_vectors(a_th2_array, k3_array, k4_array)
+
+
 def find_minimum_threshold_on_contour(K_x, K_y, E_mismatch, k_in_complex, is_trivial, state: core.SystemState):
-    """Главный оркестратор поиска порога."""
+    """Главный оркестратор поиска порога. Строгое сравнение энергий."""
     _, _, gamma_in, _ = compute_pump_parameters(k_in_complex, state)
 
+    # 1. Аналитический расчет порога для тривиального режима (центр)
+    # Выполняется ВСЕГДА, так как самовоздействие присутствует постоянно.
+    a_th2_triv, k3_triv, k4_triv = _handle_trivial_threshold(k_in_complex, gamma_in, state)
+
     if is_trivial:
-        return _handle_trivial_threshold(k_in_complex, gamma_in, state)
+        return a_th2_triv, k3_triv, k4_triv
 
+    # 2. Поиск геометрических резонансов (лепестков)
     contour_vertices = _extract_zero_contour_vertices(K_x, K_y, E_mismatch)
-    if len(contour_vertices) == 0:
-        return np.nan, k_in_complex, k_in_complex
 
+    if len(contour_vertices) == 0:
+        return a_th2_triv, k3_triv, k4_triv
+
+    # 3. Расчет порогов для всех точек нетривиального контура
     k3_array = contour_vertices[:, 0] + 1j * contour_vertices[:, 1]
     k4_array = (2.0 * k_in_complex) - k3_array
 
@@ -180,5 +232,11 @@ def find_minimum_threshold_on_contour(K_x, K_y, E_mismatch, k_in_complex, is_tri
     )
 
     a_th2_array = _compute_thresholds_numba(gamma_3, gamma_4, W_abs)
+    a_th2_contour, k3_cont, k4_cont = _find_best_scattered_vectors(a_th2_array, k3_array, k4_array)
 
-    return _find_best_scattered_vectors(a_th2_array, k3_array, k4_array)
+    # 4. Абсолютный критерий оптимальности
+    # Сравниваем лучший порог на лепестках с порогом самовоздействия в центре
+    if np.isnan(a_th2_contour) or a_th2_triv <= a_th2_contour:
+        return a_th2_triv, k3_triv, k4_triv
+    else:
+        return a_th2_contour, k3_cont, k4_cont

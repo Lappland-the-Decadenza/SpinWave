@@ -30,8 +30,12 @@ def create_contour_figure(K_x, K_y, E_mismatch, k_span, is_trivial, k_in_complex
     cbar = fig.colorbar(cmap_plot, ax=ax)
     cbar.set_label(r'Energy mismatch $\Delta \omega$ (Symmetrical Log)')
 
-    if not is_trivial and k3_opt is not None and k4_opt is not None:
+    try:
         ax.contour(K_x_SI, K_y_SI, E_mismatch, levels=[0.0], colors='black', linewidths=3)
+    except Exception:
+        pass  # Игнорируем, если нулей на карте нет
+
+    if not is_trivial and k3_opt is not None and k4_opt is not None:
         title = custom_title if custom_title else r'Resonance Contour and Optimal Vectors'
         ax.set_title(title, fontweight='bold', fontsize=14)
 
