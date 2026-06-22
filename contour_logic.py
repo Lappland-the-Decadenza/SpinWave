@@ -54,52 +54,47 @@ def _bisection_search(a, b, k_in_complex, ang, E_target, d, alpha_ex, theta_M, o
 
 
 @njit(cache=True)
-def _find_root_along_ray(k_in_complex, ang, initial_r, E_target, d, alpha_ex, theta_M, omega_M, omega_H, omega_M_half, omega_M_sqrt2):
+def _find_root_along_ray(k_in_complex, ang, R_max, E_target, d, alpha_ex, theta_M, omega_M, omega_H, omega_M_half, omega_M_sqrt2):
     """
-    Поиск вилки с детектированием смены знака невязки.
-    Модификация: Сканирует весь физический диапазон и возвращает САМУЮ ДАЛЬНЮЮ границу контура,
-    предотвращая визуальное обрезание широких резонансных пузырей.
+    Линейное сканирование на строго заданном аналитическом отрезке [0, R_max].
     """
-    r_val = initial_r
-    prev_val = np.nan
+    N_STEPS = 200 # Количество сегментов для поиска смены знака
+    step_size = R_max / N_STEPS
 
     furthest_a = -1.0
     furthest_b = -1.0
+    prev_val = np.nan
 
-    for step in range(100):
+    for i in range(N_STEPS + 1):
+        r_val = i * step_size
         k3_c = k_in_complex + r_val * np.exp(1j * ang)
         k4_c = 2.0 * k_in_complex - k3_c
 
-        _, _, om3 = core.compute_light_mode_scalar(np.abs(k3_c), np.angle(k3_c), d, alpha_ex, theta_M, omega_M, omega_H,
-                                                   omega_M_half, omega_M_sqrt2)
-        _, _, om4 = core.compute_light_mode_scalar(np.abs(k4_c), np.angle(k4_c), d, alpha_ex, theta_M, omega_M, omega_H,
-                                                   omega_M_half, omega_M_sqrt2)
+        _, _, om3 = core.compute_light_mode_scalar(np.abs(k3_c), np.angle(k3_c), d, alpha_ex, theta_M, omega_M, omega_H, omega_M_half, omega_M_sqrt2)
+        _, _, om4 = core.compute_light_mode_scalar(np.abs(k4_c), np.angle(k4_c), d, alpha_ex, theta_M, omega_M, omega_H, omega_M_half, omega_M_sqrt2)
 
         val = (om3 + om4) - E_target
 
-        if np.isnan(val):
-            break
+        if not np.isnan(val):
+            if not np.isnan(prev_val):
+                if np.sign(val) != np.sign(prev_val):
+                    # Фиксируем вилку
+                    furthest_a = r_val - step_size
+                    furthest_b = r_val
+            prev_val = val
+        else:
+            # Сброс при пересечении сингулярности (k=0)
+            prev_val = np.nan
 
-        if not np.isnan(prev_val):
-            if np.sign(val) != np.sign(prev_val):
-                # Фиксируем координаты вилки, но НЕ прерываем цикл (ищем дальше)
-                furthest_a = r_val / 2.0
-                furthest_b = r_val
-
-        prev_val = val
-        r_val *= 2.0
-
-    # После завершения сканирования отправляем на бисекцию только самую внешнюю вилку
-    if furthest_a > 0.0:
-        return _bisection_search(furthest_a, furthest_b, k_in_complex, ang, E_target, d, alpha_ex, theta_M, omega_M,
-                                 omega_H, omega_M_half, omega_M_sqrt2)
+    if furthest_a >= 0.0:
+        return _bisection_search(furthest_a, furthest_b, k_in_complex, ang, E_target, d, alpha_ex, theta_M, omega_M, omega_H, omega_M_half, omega_M_sqrt2)
 
     return -1.0
 
 
 @njit(cache=True)
 def _find_boundaries_numba_kernel(k_in_complex, d, alpha_ex, theta_M, omega_M, omega_H, omega_M_half, omega_M_sqrt2):
-    """Шаг 1: Сканирование радиальными лучами. Устранена слепая зона."""
+    """Шаг 1: Определение R_max и сканирование лучами."""
     k_in_mag = np.abs(k_in_complex)
     ang_in = np.angle(k_in_complex)
 
@@ -107,13 +102,20 @@ def _find_boundaries_numba_kernel(k_in_complex, d, alpha_ex, theta_M, omega_M, o
                                                  omega_M_sqrt2)
     E_target = 2.0 * om_in
 
-    RAY_COUNT = 32
+    # Аналитическое вычисление максимального волнового вектора k_max
+    # Защита от отрицательного подкоренного выражения, если om_in < omega_H
+    radicand = max(0.0, 2.0 * (om_in - omega_H))
+    k_max_analytical = 2 * np.sqrt(radicand / (omega_M * alpha_ex))
+
+    # Максимальный радиус поиска от точки накачки
+    R_max = k_max_analytical + k_in_mag
+
+    RAY_COUNT = 72
     max_root = -1.0
-    initial_r = 1e-5  # СГС, абсолютный микрошаг
 
     for i in range(RAY_COUNT):
         ang = 2.0 * np.pi * i / RAY_COUNT
-        root = _find_root_along_ray(k_in_complex, ang, initial_r, E_target, d, alpha_ex, theta_M, omega_M, omega_H,
+        root = _find_root_along_ray(k_in_complex, ang, R_max, E_target, d, alpha_ex, theta_M, omega_M, omega_H,
                                     omega_M_half, omega_M_sqrt2)
         if root > max_root:
             max_root = root

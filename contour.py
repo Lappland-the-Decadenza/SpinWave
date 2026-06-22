@@ -43,17 +43,18 @@ def main():
     K_x, K_y, E_mismatch = contour_logic.compute_mismatch_grid(k_in_complex, k_span, state, grid_res)
 
     print("=== STEP 3: ANALYZING THRESHOLD ===")
-    a_th2, k3_opt, k4_opt = analytics.find_minimum_threshold_on_contour(
+    a_th2, k3_opt, k4_opt, c_k3x, c_k3y, c_a_th2 = analytics.find_minimum_threshold_on_contour(
         K_x, K_y, E_mismatch, k_in_complex, is_trivial, state
     )
 
     omega_in, v_g_si, gamma_in, loss_db = analytics.compute_pump_parameters(k_in_complex, state)
     P_th_w_m = analytics.calculate_threshold_power(a_th2, v_g_si, omega_in, state)
+    c_P_th = analytics.calculate_threshold_power(c_a_th2, v_g_si, omega_in, state) if c_a_th2 is not None else None
 
     print("=== STEP 4: PLOTTING (SI Scale) ===")
-    # Используем графический движок
     fig, ax = plot_utils.create_contour_figure(
-        K_x, K_y, E_mismatch, k_span, is_trivial, k_in_complex, k3_opt, k4_opt
+        K_x, K_y, E_mismatch, k_span, is_trivial, k_in_complex, k3_opt, k4_opt,
+        contour_k3x=c_k3x, contour_k3y=c_k3y, contour_thresholds=c_P_th
     )
 
     # Вывод результатов в консоль

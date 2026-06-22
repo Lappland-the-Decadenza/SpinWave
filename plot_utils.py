@@ -4,7 +4,7 @@ from matplotlib.colors import SymLogNorm
 
 
 def create_contour_figure(K_x, K_y, E_mismatch, k_span, is_trivial, k_in_complex, k3_opt=None, k4_opt=None,
-                          custom_title=""):
+                          custom_title="", contour_k3x=None, contour_k3y=None, contour_thresholds=None):
     """
     Универсальное ядро отрисовки контура.
     Переводит всё в СИ и строит тепловую карту + векторы.
@@ -31,9 +31,22 @@ def create_contour_figure(K_x, K_y, E_mismatch, k_span, is_trivial, k_in_complex
     cbar.set_label(r'Energy mismatch $\Delta \omega$ (Symmetrical Log)')
 
     try:
-        ax.contour(K_x_SI, K_y_SI, E_mismatch, levels=[0.0], colors='black', linewidths=3)
+        if contour_k3x is not None and contour_thresholds is not None:
+            c_k3x_SI = np.array(contour_k3x) * 1e2
+            c_k3y_SI = np.array(contour_k3y) * 1e2
+
+            # Маскируем inf значения для корректной работы colormap
+            valid_mask = ~np.isinf(contour_thresholds)
+
+            sc = ax.scatter(c_k3x_SI[valid_mask], c_k3y_SI[valid_mask], c=contour_thresholds[valid_mask],
+                            cmap='viridis', s=25, edgecolor='none', zorder=5)
+
+            cbar_th = fig.colorbar(sc, ax=ax, pad=0.05)
+            cbar_th.set_label(r'Threshold Power $P_{th}$ (W/m)', rotation=270, labelpad=20)
+        else:
+            ax.contour(K_x_SI, K_y_SI, E_mismatch, levels=[0.0], colors='black', linewidths=3)
     except Exception:
-        pass  # Игнорируем, если нулей на карте нет
+        pass
 
     if not is_trivial and k3_opt is not None and k4_opt is not None:
         title = custom_title if custom_title else r'Resonance Contour and Optimal Vectors'
@@ -81,6 +94,10 @@ def show_interactive_contour_popup(res_data, idx):
     is_trivial = res_data['is_trivial'][idx]
     k_span = res_data['k_span'][idx]
 
+    c_k3x = res_data.get('contour_k3x', [None] * (idx + 1))[idx]
+    c_k3y = res_data.get('contour_k3y', [None] * (idx + 1))[idx]
+    c_P_th = res_data.get('contour_P_th', [None] * (idx + 1))[idx]
+
     label = res_data.get('label', '')
     freq_ghz = res_data.get('frequencies', res_data.get('f1'))[idx]
 
@@ -92,6 +109,7 @@ def show_interactive_contour_popup(res_data, idx):
     # Вызываем наше единое графическое ядро
     fig, ax = create_contour_figure(
         K_x, K_y, E_mismatch, k_span, is_trivial,
-        k_in_complex, k3_c, k4_c, custom_title=title
+        k_in_complex, k3_c, k4_c, custom_title=title,
+        contour_k3x=c_k3x, contour_k3y=c_k3y, contour_thresholds=c_P_th
     )
     fig.show()

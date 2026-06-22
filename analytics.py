@@ -93,9 +93,9 @@ def compute_pump_parameters(k_in_complex, state: core.SystemState):
 
 def calculate_threshold_power(a_th2, v_g_si, omega_in_rad_s, state: core.SystemState):
     """Вычисляет критическую мощность накачки (P_th) в Вт/м."""
-    if np.isnan(a_th2):
-        return np.nan
 
+    # Математические операции NumPy автоматически пробрасывают np.nan
+    # как для скаляров, так и для массивов.
     v_g_cgs = np.abs(v_g_si) * 100.0
     P_th_cgs = (state.Ms * state.d * v_g_cgs * omega_in_rad_s * a_th2) / np.abs(core.GAMMA_CGS)
 
@@ -203,20 +203,16 @@ def find_minimum_threshold_on_contour(K_x, K_y, E_mismatch, k_in_complex, is_tri
     """Главный оркестратор поиска порога. Строгое сравнение энергий."""
     _, _, gamma_in, _ = compute_pump_parameters(k_in_complex, state)
 
-    # 1. Аналитический расчет порога для тривиального режима (центр)
-    # Выполняется ВСЕГДА, так как самовоздействие присутствует постоянно.
     a_th2_triv, k3_triv, k4_triv = _handle_trivial_threshold(k_in_complex, gamma_in, state)
 
     if is_trivial:
-        return a_th2_triv, k3_triv, k4_triv
+        return a_th2_triv, k3_triv, k4_triv, None, None, None
 
-    # 2. Поиск геометрических резонансов (лепестков)
     contour_vertices = _extract_zero_contour_vertices(K_x, K_y, E_mismatch)
 
     if len(contour_vertices) == 0:
-        return a_th2_triv, k3_triv, k4_triv
+        return a_th2_triv, k3_triv, k4_triv, None, None, None
 
-    # 3. Расчет порогов для всех точек нетривиального контура
     k3_array = contour_vertices[:, 0] + 1j * contour_vertices[:, 1]
     k4_array = (2.0 * k_in_complex) - k3_array
 
@@ -234,9 +230,10 @@ def find_minimum_threshold_on_contour(K_x, K_y, E_mismatch, k_in_complex, is_tri
     a_th2_array = _compute_thresholds_numba(gamma_3, gamma_4, W_abs)
     a_th2_contour, k3_cont, k4_cont = _find_best_scattered_vectors(a_th2_array, k3_array, k4_array)
 
-    # 4. Абсолютный критерий оптимальности
-    # Сравниваем лучший порог на лепестках с порогом самовоздействия в центре
+    c_k3x = np.real(k3_array)
+    c_k3y = np.imag(k3_array)
+
     if np.isnan(a_th2_contour) or a_th2_triv <= a_th2_contour:
-        return a_th2_triv, k3_triv, k4_triv
+        return a_th2_triv, k3_triv, k4_triv, c_k3x, c_k3y, a_th2_array
     else:
-        return a_th2_contour, k3_cont, k4_cont
+        return a_th2_contour, k3_cont, k4_cont, c_k3x, c_k3y, a_th2_array
